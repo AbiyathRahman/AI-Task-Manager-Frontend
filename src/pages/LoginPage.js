@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function LoginPage(){
     const [form, setForm] = useState({username: '', password: ''});
+    const [message, setMessage] = useState("");
     const navigate = useNavigate();
 
     const handleChange = e => setForm({...form, [e.target.name]: e.target.value});
@@ -15,7 +16,8 @@ export default function LoginPage(){
             localStorage.setItem("token", res.data.token);
             navigate("/dashboard");
         } catch (error) {
-            alert("Login Failed");
+            setMessage("Login failed. Please check your credentials.");
+            setTimeout(() => setMessage(""), 3000);
         }
     };
 
@@ -23,6 +25,9 @@ export default function LoginPage(){
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
           <form onSubmit={handleLogin} className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm flex flex-col gap-4">
             <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Login</h2>
+            {message && (
+              <div className="mb-2 w-full text-center py-2 rounded font-semibold bg-red-100 text-red-700">{message}</div>
+            )}
             <input 
               name="username" 
               onChange={handleChange} 
