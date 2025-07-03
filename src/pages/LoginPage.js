@@ -12,7 +12,7 @@ export default function LoginPage(){
     const handleLogin = async e => {
         e.preventDefault();
         try {
-            const res = await axios.post('/auth/login', form);
+            const res = await axios.post('/api/auth/login', form);
             localStorage.setItem("token", res.data.token);
             navigate("/dashboard");
         } catch (error) {
