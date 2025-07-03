@@ -21,7 +21,7 @@ export default function Dashboard() {
         setAiLoading(true);
         setAiInsight("");
         try {
-            const res = await axios.get('/task/insights');
+            const res = await axios.get('/api/task/insights');
             console.log('AI Insight Response:', res.data);
             setAiInsight(res.data.content && res.data.content.text ? res.data.content.text : JSON.stringify(res.data.content || res.data));
         } finally {
@@ -30,7 +30,7 @@ export default function Dashboard() {
     };
 
     const loadTask = async () => {
-        const res = await axios.get('/task/my-tasks');
+        const res = await axios.get('/api/task/my-tasks');
         setTasks(res.data);
     };
     useEffect(() => {loadTask();}, []);
@@ -42,7 +42,7 @@ export default function Dashboard() {
         try {
             if (isUpdate) {
                 // Update existing task
-                await axios.put(`/task/${selectedTaskId}`, form, {
+                await axios.put(`/api/task/${selectedTaskId}`, form, {
                     headers: {
                         'Content-Type': 'application/json'
                     }
@@ -50,7 +50,7 @@ export default function Dashboard() {
                 showMessage('Task updated successfully', 'success');
             } else {
                 // Create new task
-                await axios.post('/task/create', form, {
+                await axios.post('/api/task/create', form, {
                     headers: {
                         'Content-Type': 'application/json'
                     }
@@ -84,7 +84,7 @@ export default function Dashboard() {
     }
     const handleDelete = async (task) => {
         try {
-            await axios.delete(`/task/${task.id}`);
+            await axios.delete(`/api/task/${task.id}`);
             showMessage('Task deleted successfully', 'success');
         } catch (error) {
             console.log(error)
