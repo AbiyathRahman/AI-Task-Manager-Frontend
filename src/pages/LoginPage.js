@@ -16,7 +16,7 @@ export default function LoginPage(){
             localStorage.setItem("token", res.data.token);
             navigate("/dashboard");
         } catch (error) {
-            setMessage("Login failed. Please check your credentials.");
+            setMessage("Login failed. Please check your credentials." + error.response.data.message);
             setTimeout(() => setMessage(""), 3000);
         }
     };
