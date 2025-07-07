@@ -4,7 +4,7 @@ This is the frontend for **InsightPulse**, a full-stack productivity and task ma
 It interacts with a Spring Boot backend via RESTful APIs and is deployed on **Vercel**.
 
 ![Vercel Deployment](https://img.shields.io/badge/Vercel-Deployed-success?style=flat-square)
-[![Live Demo](https://img.shields.io/badge/🌐%20Live-Demo-blue?style=for-the-badge)](https://your-frontend-url.vercel.app)
+[![Live Demo](https://img.shields.io/badge/🌐%20Live-Demo-blue?style=for-the-badge)](https://ai-task-manager-frontend-beta.vercel.app)
 
 ---
 
