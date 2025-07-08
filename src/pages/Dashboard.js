@@ -1,5 +1,6 @@
 import axios from "../api/axios";
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 export default function Dashboard() {
     const [tasks, setTasks] = useState([]);
@@ -10,12 +11,48 @@ export default function Dashboard() {
     const [aiLoading, setAiLoading] = useState(false);
     const [message, setMessage] = useState("");
     const [messageType, setMessageType] = useState(""); // 'success' or 'error'
+    const [event, setEvent] = useState([]);
+
+    const location = useLocation();
 
     const showMessage = (msg, type = 'success') => {
         setMessage(msg);
         setMessageType(type);
         setTimeout(() => setMessage(""), 3000);
     };
+
+    const getAuthUrl = async () => {
+        try {
+            const res = await axios.get('/api/calendar/auth-url');
+            setEvent(res.data);
+            window.location.href = res.data.url;
+            
+        } catch (error) {
+            console.log(error);
+            showMessage('Error getting auth url', 'error');
+        }
+    };
+    useEffect(() => {
+        const queryParams = new URLSearchParams(location.search);
+        const code = queryParams.get('code');
+        if (code) {
+            try {
+                axios.get(`/api/calendar/auth-url?code=${code}`)
+                    .then(res => {
+                        setEvent(res.data);
+                    })
+                    .catch(error => {
+                        console.log(error);
+                        showMessage('Error getting auth url', 'error');
+                    });
+            } catch (error) {
+                console.log(error);
+                showMessage('Error getting auth url', 'error');
+            }
+        }
+    }, [location.search]);
+
+
 
     const fetchInsight = async () => {
         setAiLoading(true);
@@ -144,6 +181,16 @@ export default function Dashboard() {
                 {message && (
                     <div className={`mb-4 w-full text-center py-2 rounded font-semibold ${messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'}`}>{message}</div>
                 )}
+                {/* Connect Google Calendar Button */}
+                <div className="mb-6 flex flex-col items-start gap-2">
+                    <button
+                        onClick={getAuthUrl}
+                        className="flex items-center gap-2 bg-green-100 hover:bg-green-200 text-green-800 font-semibold px-4 py-2 rounded transition-colors duration-200 shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24" height="24" className="inline-block"><g><path fill="#4285F4" d="M44.5 20H24v8.5h11.7C34.7 33.6 30.1 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/><path fill="#34A853" d="M6.3 14.7l7 5.1C15.5 16.1 19.4 13 24 13c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 15.2 3 7.7 8.7 6.3 14.7z"/><path fill="#FBBC05" d="M24 45c5.1 0 9.8-1.7 13.4-4.7l-6.2-5.1C29.2 36.5 26.7 37.5 24 37.5c-6.1 0-10.7-4.1-12.5-9.6l-7 5.4C7.7 39.3 15.2 45 24 45z"/><path fill="#EA4335" d="M44.5 20H24v8.5h11.7c-1.2 3.2-4.2 5.5-7.7 5.5-2.2 0-4.2-.7-5.7-2l-7 5.4C18.2 43.1 21 45 24 45c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/></g></svg>
+                        Connect Google Calendar
+                    </button>
+                </div>
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Task List */}
                     <div className="flex-1 bg-white bg-opacity-90 rounded-xl shadow-lg p-6">
