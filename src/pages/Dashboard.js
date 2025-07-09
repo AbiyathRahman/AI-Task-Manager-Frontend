@@ -11,7 +11,9 @@ export default function Dashboard() {
     const [aiLoading, setAiLoading] = useState(false);
     const [message, setMessage] = useState("");
     const [messageType, setMessageType] = useState(""); // 'success' or 'error'
-    const [event, setEvent] = useState([]);
+    const [events, setEvents] = useState([]);
+    const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+    const [eventsLoading, setEventsLoading] = useState(false);
 
     const location = useLocation();
 
@@ -24,35 +26,71 @@ export default function Dashboard() {
     const getAuthUrl = async () => {
         try {
             const res = await axios.get('/api/calendar/auth-url');
-            setEvent(res.data);
             window.location.href = res.data.url;
-            
         } catch (error) {
             console.log(error);
             showMessage('Error getting auth url', 'error');
         }
     };
+
+    const fetchEvents = async (code) => {
+        setEventsLoading(true);
+        try {
+            const res = await axios.get(`/api/calendar/events?code=${code}`);
+            console.log('Events API response:', res.data);
+            console.log('Events type:', typeof res.data);
+            console.log('Is array:', Array.isArray(res.data));
+            // Handle the response structure: {count: number, events: string[]}
+            const eventsData = res.data.events || res.data;
+            setEvents(eventsData);
+            setIsGoogleConnected(true);
+            // Store connection status and events in localStorage
+            localStorage.setItem('googleCalendarConnected', 'true');
+            localStorage.setItem('googleCalendarEvents', JSON.stringify(eventsData));
+            showMessage('Google Calendar connected successfully!', 'success');
+        } catch (error) {
+            console.log(error);
+            showMessage('Error fetching events', 'error');
+        } finally {
+            setEventsLoading(false);
+        }
+    };
+
     useEffect(() => {
         const queryParams = new URLSearchParams(location.search);
         const code = queryParams.get('code');
         if (code) {
-            try {
-                axios.get(`/api/calendar/auth-url?code=${code}`)
-                    .then(res => {
-                        setEvent(res.data);
-                    })
-                    .catch(error => {
-                        console.log(error);
-                        showMessage('Error getting auth url', 'error');
-                    });
-            } catch (error) {
-                console.log(error);
-                showMessage('Error getting auth url', 'error');
-            }
+            fetchEvents(code);
+            // Clear the URL parameters after processing
+            window.history.replaceState({}, document.title, window.location.pathname);
         }
     }, [location.search]);
 
-
+    // Check if user is already connected on page load
+    useEffect(() => {
+        const checkConnection = async () => {
+            try {
+                const connected = localStorage.getItem('googleCalendarConnected');
+                const storedEvents = localStorage.getItem('googleCalendarEvents');
+                
+                if (connected === 'true') {
+                    setIsGoogleConnected(true);
+                    // Load stored events if available
+                    if (storedEvents) {
+                        try {
+                            const parsedEvents = JSON.parse(storedEvents);
+                            setEvents(parsedEvents);
+                        } catch (e) {
+                            console.log('Error parsing stored events:', e);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('Error checking connection status:', error);
+            }
+        };
+        checkConnection();
+    }, []);
 
     const fetchInsight = async () => {
         setAiLoading(true);
@@ -163,6 +201,22 @@ export default function Dashboard() {
         return <div className="bg-blue-50 rounded p-3 text-blue-900 whitespace-pre-line mt-2 w-full">{String(parsed)}</div>;
     }
 
+    // Helper to format date
+    const formatDate = (dateString) => {
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return dateString;
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-100 to-blue-200 py-2 px-2">
             <div className="max-w-5xl mx-auto">
@@ -182,15 +236,17 @@ export default function Dashboard() {
                     <div className={`mb-4 w-full text-center py-2 rounded font-semibold ${messageType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'}`}>{message}</div>
                 )}
                 {/* Connect Google Calendar Button */}
-                <div className="mb-6 flex flex-col items-start gap-2">
-                    <button
-                        onClick={getAuthUrl}
-                        className="flex items-center gap-2 bg-green-100 hover:bg-green-200 text-green-800 font-semibold px-4 py-2 rounded transition-colors duration-200 shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24" height="24" className="inline-block"><g><path fill="#4285F4" d="M44.5 20H24v8.5h11.7C34.7 33.6 30.1 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/><path fill="#34A853" d="M6.3 14.7l7 5.1C15.5 16.1 19.4 13 24 13c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 15.2 3 7.7 8.7 6.3 14.7z"/><path fill="#FBBC05" d="M24 45c5.1 0 9.8-1.7 13.4-4.7l-6.2-5.1C29.2 36.5 26.7 37.5 24 37.5c-6.1 0-10.7-4.1-12.5-9.6l-7 5.4C7.7 39.3 15.2 45 24 45z"/><path fill="#EA4335" d="M44.5 20H24v8.5h11.7c-1.2 3.2-4.2 5.5-7.7 5.5-2.2 0-4.2-.7-5.7-2l-7 5.4C18.2 43.1 21 45 24 45c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/></g></svg>
-                        Connect Google Calendar
-                    </button>
-                </div>
+                {!isGoogleConnected && (
+                    <div className="mb-6 flex flex-col items-start gap-2">
+                        <button
+                            onClick={getAuthUrl}
+                            className="flex items-center gap-2 bg-green-100 hover:bg-green-200 text-green-800 font-semibold px-4 py-2 rounded transition-colors duration-200 shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24" height="24" className="inline-block"><g><path fill="#4285F4" d="M44.5 20H24v8.5h11.7C34.7 33.6 30.1 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/><path fill="#34A853" d="M6.3 14.7l7 5.1C15.5 16.1 19.4 13 24 13c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 15.2 3 7.7 8.7 6.3 14.7z"/><path fill="#FBBC05" d="M24 45c5.1 0 9.8-1.7 13.4-4.7l-6.2-5.1C29.2 36.5 26.7 37.5 24 37.5c-6.1 0-10.7-4.1-12.5-9.6l-7 5.4C7.7 39.3 15.2 45 24 45z"/><path fill="#EA4335" d="M44.5 20H24v8.5h11.7c-1.2 3.2-4.2 5.5-7.7 5.5-2.2 0-4.2-.7-5.7-2l-7 5.4C18.2 43.1 21 45 24 45c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/></g></svg>
+                            Connect Google Calendar
+                        </button>
+                    </div>
+                )}
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Task List */}
                     <div className="flex-1 bg-white bg-opacity-90 rounded-xl shadow-lg p-6">
@@ -290,6 +346,65 @@ export default function Dashboard() {
                         </form>
                     </div>
                 </div>
+                
+                {/* Google Calendar Events Section */}
+                {isGoogleConnected && (
+                    <div className="mt-8 bg-white bg-opacity-90 rounded-xl shadow-lg p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-2xl font-bold text-green-700 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24" height="24"><g><path fill="#4285F4" d="M44.5 20H24v8.5h11.7C34.7 33.6 30.1 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/><path fill="#34A853" d="M6.3 14.7l7 5.1C15.5 16.1 19.4 13 24 13c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 15.2 3 7.7 8.7 6.3 14.7z"/><path fill="#FBBC05" d="M24 45c5.1 0 9.8-1.7 13.4-4.7l-6.2-5.1C29.2 36.5 26.7 37.5 24 37.5c-6.1 0-10.7-4.1-12.5-9.6l-7 5.4C7.7 39.3 15.2 45 24 45z"/><path fill="#EA4335" d="M44.5 20H24v8.5h11.7c-1.2 3.2-4.2 5.5-7.7 5.5-2.2 0-4.2-.7-5.7-2l-7 5.4C18.2 43.1 21 45 24 45c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/></g></svg>
+                                Google Calendar Events
+                            </h2>
+                            <div className="flex items-center gap-2">
+                                <div className="text-sm text-green-600 font-medium">✓ Connected</div>
+                                <button
+                                    onClick={() => {
+                                        setIsGoogleConnected(false);
+                                        setEvents([]);
+                                        localStorage.removeItem('googleCalendarConnected');
+                                        localStorage.removeItem('googleCalendarEvents');
+                                        showMessage('Google Calendar disconnected', 'success');
+                                    }}
+                                    className="text-xs text-red-600 hover:text-red-800 underline"
+                                >
+                                    Disconnect
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {eventsLoading ? (
+                            <div className="text-center py-8">
+                                <div className="text-green-700 font-semibold">Loading events...</div>
+                            </div>
+                        ) : events.length === 0 ? (
+                            <div className="text-center py-8">
+                                <div className="text-gray-500">No upcoming events found in your Google Calendar.</div>
+                            </div>
+                        ) : (
+                            <div className="grid gap-4">
+                                {Array.isArray(events) ? events.map((event, index) => (
+                                    <div key={index} className="bg-green-50 rounded-lg p-4 border-l-4 border-green-400 hover:shadow-md transition-shadow">
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                                <h3 className="font-semibold text-green-800 text-lg mb-1">
+                                                    {event.split(' - ')[1] || 'Untitled Event'}
+                                                </h3>
+                                                <p className="text-green-700 text-sm">
+                                                    📅 {formatDate(event.split(' - ')[0])}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )) : (
+                                    <div className="text-center py-8">
+                                        <div className="text-gray-500">Invalid events data received.</div>
+                                        <div className="text-xs text-gray-400 mt-2">Debug: {JSON.stringify(events)}</div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
