@@ -71,7 +71,7 @@ export default function Dashboard() {
             // Clear the URL parameters after processing
             window.history.replaceState({}, document.title, window.location.pathname);
         }
-    }, [location.search, fetchEvents]);
+    }, [location.search]);
 
     // Check if user is already connected on page load
     useEffect(() => {
