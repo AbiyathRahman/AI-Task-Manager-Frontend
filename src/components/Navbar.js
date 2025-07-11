@@ -9,13 +9,17 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="w-full bg-white bg-opacity-90 shadow flex items-center justify-between px-6 py-4 mb-6">
+    <nav className="w-full bg-gray-900 bg-opacity-80 shadow-md border-b border-green-700 flex items-center justify-between px-6 py-4 mb-6 backdrop-blur transition-all duration-500">
       <div className="flex items-center gap-8">
-        <span className="text-2xl font-extrabold text-blue-700 tracking-tight">InsightPulse</span>
+        <span className="text-2xl font-extrabold text-green-400 tracking-tight drop-shadow-lg">InsightPulse</span>
         <NavLink
           to="/dashboard"
           className={({ isActive }) =>
-            `text-lg font-semibold px-3 py-1 rounded transition-colors duration-200 ${isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:text-blue-700'}`
+            `text-lg font-semibold px-3 py-1 rounded transition-all duration-300 ${
+              isActive
+                ? "bg-green-900 text-green-400"
+                : "text-gray-200 hover:text-green-400 hover:bg-gray-800"
+            }`
           }
         >
           Dashboard
@@ -23,7 +27,11 @@ export default function Navbar() {
         <NavLink
           to="/settings"
           className={({ isActive }) =>
-            `text-lg font-semibold px-3 py-1 rounded transition-colors duration-200 ${isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:text-blue-700'}`
+            `text-lg font-semibold px-3 py-1 rounded transition-all duration-300 ${
+              isActive
+                ? "bg-green-900 text-green-400"
+                : "text-gray-200 hover:text-green-400 hover:bg-gray-800"
+            }`
           }
         >
           Settings
@@ -31,7 +39,7 @@ export default function Navbar() {
       </div>
       <button
         onClick={handleLogout}
-        className="text-red-500 hover:text-red-700 font-semibold text-lg px-4 py-2 rounded transition-colors duration-200 border border-red-200 bg-red-50"
+        className="text-red-400 hover:text-red-300 font-semibold text-lg px-4 py-2 rounded transition-all duration-300 border border-red-700 bg-red-900 hover:bg-red-800"
       >
         Logout
       </button>

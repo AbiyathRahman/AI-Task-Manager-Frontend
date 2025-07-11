@@ -22,17 +22,17 @@ export default function LoginPage(){
     };
 
     return(
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
-          <form onSubmit={handleLogin} className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm flex flex-col gap-4">
-            <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Login</h2>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-black to-green-900">
+          <form onSubmit={handleLogin} className="bg-gray-900 p-8 rounded-lg shadow-lg w-full max-w-sm flex flex-col gap-4 border border-green-800">
+            <h2 className="text-2xl font-bold mb-6 text-center text-green-400 drop-shadow-lg">Login</h2>
             {message && (
-              <div className="mb-2 w-full text-center py-2 rounded font-semibold bg-red-100 text-red-700">{message}</div>
+              <div className="mb-2 w-full text-center py-2 rounded font-semibold bg-red-900 text-red-300 border border-red-700">{message}</div>
             )}
             <input 
               name="username" 
               onChange={handleChange} 
               placeholder="Username"
-              className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="border border-green-700 bg-gray-800 text-gray-100 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-gray-400"
               autoComplete="username"
               required
             />
@@ -41,13 +41,13 @@ export default function LoginPage(){
               type="password"
               onChange={handleChange} 
               placeholder="Password"
-              className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="border border-green-700 bg-gray-800 text-gray-100 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-gray-400"
               autoComplete="current-password"
               required
             />
             <button 
               type="submit" 
-              className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded transition-colors duration-200"
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               Login
             </button>

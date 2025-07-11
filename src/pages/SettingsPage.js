@@ -12,11 +12,10 @@ export default function SettingsPage() {
   // Load user details from backend
   const loadUser = async () => {
     try {
-      const res = await axios.get('/user/you');
+      const res = await axios.get('/api/user/you');
       setUser(res.data);
       setForm({ name: res.data.name, username: res.data.username });
     } catch (err) {
-      // Optionally handle error
       setUser({ name: "", username: "" });
       setForm({ name: "", username: "" });
     } finally {
@@ -36,7 +35,7 @@ export default function SettingsPage() {
     setError("");
     setSuccess(false);
     try {
-      await axios.put('/user/change-name', form, {
+      await axios.put('/api/user/change-name', form, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -51,45 +50,45 @@ export default function SettingsPage() {
     }
   };
 
-  if (loading) return <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-100 to-blue-200"><div className="text-blue-700 text-xl font-bold">Loading...</div></div>;
+  if (loading) return <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-900 via-black to-green-900"><div className="text-green-400 text-xl font-bold">Loading...</div></div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-blue-200 flex flex-col items-center justify-center px-2 py-8">
-      <div className="bg-white bg-opacity-90 rounded-xl shadow-lg p-8 w-full max-w-md flex flex-col items-center">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-green-900 flex flex-col items-center justify-center px-2 py-8">
+      <div className="bg-gray-900 bg-opacity-95 rounded-xl shadow-lg p-8 w-full max-w-md flex flex-col items-center border border-green-800">
         <div className="mb-6 flex flex-col items-center">
-          <div className="w-24 h-24 rounded-full bg-blue-200 flex items-center justify-center text-4xl font-bold text-blue-700 mb-2">
+          <div className="w-24 h-24 rounded-full bg-green-900 flex items-center justify-center text-4xl font-bold text-green-400 mb-2 border-4 border-green-500">
             {user.username && user.username[0].toUpperCase()}
           </div>
-          <div className="text-xl font-semibold text-blue-700">{user.username}</div>
+          <div className="text-xl font-semibold text-green-400">{user.username}</div>
         </div>
         <form onSubmit={handleSave} className="w-full flex flex-col gap-4">
-          <label className="text-gray-700 font-medium">Name
+          <label className="text-gray-200 font-medium">Name
             <input
               name="name"
               value={form.name}
               onChange={handleChange}
-              className="mt-1 border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="mt-1 border border-green-700 bg-gray-800 text-gray-100 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-gray-400"
               required
               disabled={saving}
             />
           </label>
-          <label className="text-gray-700 font-medium">Username
+          <label className="text-gray-200 font-medium">Username
             <input
               name="username"
               value={form.username}
               readOnly
-              className="mt-1 border border-gray-300 rounded px-3 py-2 w-full bg-gray-100 text-gray-500 cursor-not-allowed focus:outline-none"
+              className="mt-1 border border-green-700 bg-gray-800 text-green-400 rounded px-3 py-2 w-full cursor-not-allowed focus:outline-none"
             />
           </label>
           <button
             type="submit"
-            className={`bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded transition-colors duration-200 mt-2 ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded transition-all duration-200 mt-2 shadow-lg hover:shadow-xl transform hover:scale-105 ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
             disabled={saving}
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
-          {success && <div className="text-green-600 text-center font-semibold">Profile updated!</div>}
-          {error && <div className="text-red-600 text-center font-semibold">{error}</div>}
+          {success && <div className="text-green-400 text-center font-semibold">Profile updated!</div>}
+          {error && <div className="text-red-400 text-center font-semibold">{error}</div>}
         </form>
       </div>
     </div>
