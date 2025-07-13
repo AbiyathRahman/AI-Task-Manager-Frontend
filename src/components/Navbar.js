@@ -9,7 +9,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="w-full bg-gray-900 bg-opacity-80 shadow-md border-b border-green-700 flex items-center justify-between px-6 py-4 mb-6 backdrop-blur transition-all duration-500">
+    <nav className="w-full bg-gray-900 bg-opacity-80 shadow-md border-b border-green-700 flex items-center justify-between px-6 py-4 backdrop-blur transition-all duration-500">
       <div className="flex items-center gap-8">
         <span className="text-2xl font-extrabold text-green-400 tracking-tight drop-shadow-lg">InsightPulse</span>
         <NavLink

@@ -1,5 +1,5 @@
 import axios from "../api/axios";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
 export default function Dashboard() {
@@ -17,7 +17,10 @@ export default function Dashboard() {
     const [eventInsight, setEventInsight] = useState('');
     const [eventInsightLoading, setEventInsightLoading] = useState(false);
     const [googleAuthCode, setGoogleAuthCode] = useState(null);
-
+    const [isProcessingNewAuthCode, setIsProcessingNewAuthCode] = useState(false);
+    const processedAuthCodes = useRef(new Set());
+    const isFetchingEvents = useRef(false);
+    const justCompletedFreshConnection = useRef(false);
 
 
     const location = useLocation();
@@ -26,6 +29,19 @@ export default function Dashboard() {
         setMessage(msg);
         setMessageType(type);
         setTimeout(() => setMessage(""), 3000);
+    };
+
+    const clearGoogleCalendarData = () => {
+        setIsGoogleConnected(false);
+        setGoogleAuthCode(null);
+        setEvents([]);
+        setIsProcessingNewAuthCode(false);
+        processedAuthCodes.current = new Set();
+        isFetchingEvents.current = false;
+        justCompletedFreshConnection.current = false;
+        localStorage.removeItem('googleCalendarConnected');
+        localStorage.removeItem('googleCalendarEvents');
+        localStorage.removeItem('googleAuthCode');
     };
 
     const getAuthUrl = async () => {
@@ -39,8 +55,16 @@ export default function Dashboard() {
     };
 
     const fetchEvents = async (code) => {
+        // Prevent multiple simultaneous calls
+        if (isFetchingEvents.current) {
+            console.log('Already fetching events, skipping duplicate request');
+            return;
+        }
+        
+        isFetchingEvents.current = true;
         setEventsLoading(true);
         try {
+            console.log('Fetching events with auth code:', code);
             const res = await axios.get(`/api/calendar/events?code=${code}`);
             console.log('Events API response:', res.data);
             console.log('Events type:', typeof res.data);
@@ -49,26 +73,56 @@ export default function Dashboard() {
             const eventsData = res.data.events || res.data;
             setEvents(eventsData);
             setIsGoogleConnected(true);
-            // Store connection status and events in localStorage
+            // Store connection status, events, and auth code in localStorage
             localStorage.setItem('googleCalendarConnected', 'true');
             localStorage.setItem('googleCalendarEvents', JSON.stringify(eventsData));
+            localStorage.setItem('googleAuthCode', code);
+            console.log('Stored auth code in localStorage:', code);
             showMessage('Google Calendar connected successfully!', 'success');
+            
+            // Mark that we just completed a fresh connection
+            justCompletedFreshConnection.current = true;
+            // Reset this flag after a short delay
+            setTimeout(() => {
+                justCompletedFreshConnection.current = false;
+            }, 2000);
         } catch (error) {
             console.log(error);
             showMessage('Error fetching events', 'error');
         } finally {
             setEventsLoading(false);
+            setIsProcessingNewAuthCode(false);
+            // Reset the processing flag after we're done
+            isFetchingEvents.current = false;
         }
     };
 
     useEffect(() => {
         const queryParams = new URLSearchParams(location.search);
         const code = queryParams.get('code');
-        if (code) {
+        if (code && !processedAuthCodes.current.has(code) && !isFetchingEvents.current) {
+            console.log('Processing new auth code:', code);
+            setIsProcessingNewAuthCode(true);
+            // When a new auth code is received, clear ALL old data first
+            localStorage.removeItem('googleCalendarConnected');
+            localStorage.removeItem('googleCalendarEvents');
+            localStorage.removeItem('googleAuthCode');
+            
+            // Mark this auth code as processed
+            processedAuthCodes.current.add(code);
+            
             fetchEvents(code);
             setGoogleAuthCode(code);
             
             // Clear the URL parameters after processing
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (code && processedAuthCodes.current.has(code)) {
+            console.log('Skipping already processed auth code:', code);
+            // Clear the URL parameters even if we skip processing
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (code && isFetchingEvents.current) {
+            console.log('Skipping auth code - already fetching events:', code);
+            // Clear the URL parameters even if we skip processing
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     }, [location.search]);
@@ -76,28 +130,67 @@ export default function Dashboard() {
     // Check if user is already connected on page load
     useEffect(() => {
         const checkConnection = async () => {
+            // Skip if we're currently processing a new auth code
+            if (isProcessingNewAuthCode) {
+                console.log('Skipping checkConnection - processing new auth code');
+                return;
+            }
+            
+            // Skip if we're currently fetching events
+            if (isFetchingEvents.current) {
+                console.log('Skipping checkConnection - already fetching events');
+                return;
+            }
+            
+            // Skip if we just completed a fresh connection
+            if (justCompletedFreshConnection.current) {
+                console.log('Skipping checkConnection - just completed fresh connection');
+                return;
+            }
+            
             try {
                 const connected = localStorage.getItem('googleCalendarConnected');
+                const storedAuthCode = localStorage.getItem('googleAuthCode');
                 const storedEvents = localStorage.getItem('googleCalendarEvents');
                 
-                if (connected === 'true') {
+                console.log('Checking connection - connected:', connected, 'storedAuthCode:', storedAuthCode, 'isProcessingNewAuthCode:', isProcessingNewAuthCode, 'isFetchingEvents:', isFetchingEvents.current, 'justCompletedFreshConnection:', justCompletedFreshConnection.current);
+                
+                // Only restore connection status if we have connection data
+                if (connected === 'true' && storedAuthCode && storedEvents) {
+                    console.log('Restoring connection status from localStorage');
                     setIsGoogleConnected(true);
-                    // Load stored events if available
-                    if (storedEvents) {
-                        try {
-                            const parsedEvents = JSON.parse(storedEvents);
-                            setEvents(parsedEvents);
-                        } catch (e) {
-                            console.log('Error parsing stored events:', e);
-                        }
+                    setGoogleAuthCode(storedAuthCode);
+                    
+                    // Load stored events without making API calls
+                    try {
+                        const parsedEvents = JSON.parse(storedEvents);
+                        setEvents(parsedEvents);
+                        console.log('Loaded stored events from localStorage');
+                    } catch (e) {
+                        console.log('Error parsing stored events:', e);
+                        setEvents([]);
                     }
+                } else {
+                    // Clear any partial connection data
+                    console.log('Clearing connection data - missing connection status or auth code');
+                    setIsGoogleConnected(false);
+                    setGoogleAuthCode(null);
+                    localStorage.removeItem('googleCalendarConnected');
+                    localStorage.removeItem('googleCalendarEvents');
+                    localStorage.removeItem('googleAuthCode');
                 }
             } catch (error) {
                 console.log('Error checking connection status:', error);
+                // If there's an error, clear the connection status
+                setIsGoogleConnected(false);
+                setGoogleAuthCode(null);
+                localStorage.removeItem('googleCalendarConnected');
+                localStorage.removeItem('googleCalendarEvents');
+                localStorage.removeItem('googleAuthCode');
             }
         };
         checkConnection();
-    }, []);
+    }, [isProcessingNewAuthCode]);
 
     const fetchInsight = async () => {
         setAiLoading(true);
@@ -239,246 +332,389 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-green-900 py-2 px-2">
-            <div className="max-w-5xl mx-auto">
-                {/* AI Insights Section */}
-                <div className="flex flex-col items-start gap-2 mb-6">
-                    <h2 className="text-2xl font-bold text-green-400 drop-shadow-lg">AI Insights</h2>
-                    <button
-                        onClick={() => fetchInsight(googleAuthCode)}
-                        className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={aiLoading}
-                    >
-                        <span role="img" aria-label="AI Suggestion">💡</span> {aiLoading ? 'Generating...' : 'Get AI Suggestion'}
-                    </button>
-                    {aiLoading && <div className="text-green-400 font-semibold mt-2">Generating insight...</div>}
-                    {aiInsight && renderAiInsight()}
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-green-900 p-6">
+            <div className="max-w-7xl mx-auto space-y-8">
+                {/* Header Section */}
+                <div className="text-center mb-12">
+                    <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">
+                        InsightPulse Dashboard
+                    </h1>
+                    <p className="text-gray-300 text-lg">Your productivity command center</p>
                 </div>
-                {/* Event Insights Section */}
-                <div className="flex flex-col items-start gap-2 mb-6">
-                    <h2 className="text-2xl font-bold text-green-400 drop-shadow-lg">Event Insights</h2>
-                    <button
-                        onClick={() => fetchEventInsight(googleAuthCode)}
-                        className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={eventInsightLoading}
-                    >
-                        <span role="img" aria-label="Event Insight">📅</span> {eventInsightLoading ? 'Generating...' : 'Get Event Insight'}
-                    </button>
-                    {eventInsightLoading && <div className="text-green-400 font-semibold mt-2">Generating event insight...</div>}
-                    {eventInsight && (
-                        <div className="w-full space-y-4 mt-2">
-                            {(() => {
-                                let parsed;
-                                try {
-                                    parsed = typeof eventInsight === 'string' ? JSON.parse(eventInsight) : eventInsight;
-                                } catch {
-                                    parsed = eventInsight;
-                                }
-                                if (Array.isArray(parsed)) {
-                                    return parsed.map((item, idx) => (
-                                        <div key={idx} className="bg-gray-800 border border-green-700 rounded-lg p-5 flex items-start gap-4 shadow-lg">
-                                            <div className="text-3xl mt-1">💡</div>
-                                            <div>
-                                                <div className="font-bold text-green-300 mb-1">Insight {idx + 1}</div>
-                                                <div className="text-green-100 whitespace-pre-line text-base leading-relaxed">{item.text}</div>
+
+                {/* Top Row - AI Insights & Event Insights */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* AI Insights Card */}
+                    <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50 shadow-xl">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                                <span className="text-xl">💡</span>
+                            </div>
+                            <h2 className="text-xl font-bold text-white">AI Insights</h2>
+                        </div>
+                        <button
+                            onClick={() => fetchInsight(googleAuthCode)}
+                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                            disabled={aiLoading}
+                        >
+                            {aiLoading ? 'Generating...' : 'Get AI Suggestion'}
+                        </button>
+                        {aiLoading && (
+                            <div className="mt-4 text-blue-400 font-medium text-center">
+                                <div className="animate-pulse">Generating insight...</div>
+                            </div>
+                        )}
+                        {aiInsight && (
+                            <div className="mt-4">
+                                {renderAiInsight()}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Event Insights Card */}
+                    <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50 shadow-xl">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                                <span className="text-xl">📅</span>
+                            </div>
+                            <h2 className="text-xl font-bold text-white">Event Insights</h2>
+                        </div>
+                        <button
+                            onClick={() => fetchEventInsight(googleAuthCode)}
+                            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                            disabled={eventInsightLoading}
+                        >
+                            {eventInsightLoading ? 'Generating...' : 'Get Event Insight'}
+                        </button>
+                        {eventInsightLoading && (
+                            <div className="mt-4 text-green-400 font-medium text-center">
+                                <div className="animate-pulse">Generating event insight...</div>
+                            </div>
+                        )}
+                        {eventInsight && (
+                            <div className="mt-4 space-y-3">
+                                {(() => {
+                                    let parsed;
+                                    try {
+                                        parsed = typeof eventInsight === 'string' ? JSON.parse(eventInsight) : eventInsight;
+                                    } catch {
+                                        parsed = eventInsight;
+                                    }
+                                    if (Array.isArray(parsed)) {
+                                        return parsed.map((item, idx) => (
+                                            <div key={idx} className="bg-gray-800/60 rounded-xl p-4 border border-gray-600/30">
+                                                <div className="font-semibold text-green-300 mb-2">Insight {idx + 1}</div>
+                                                <div className="text-gray-200 text-sm leading-relaxed">{item.text}</div>
                                             </div>
-                                        </div>
-                                    ));
-                                }
-                                if (typeof parsed === 'object' && parsed.text) {
+                                        ));
+                                    }
+                                    if (typeof parsed === 'object' && parsed.text) {
+                                        return (
+                                            <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-600/30">
+                                                <div className="font-semibold text-green-300 mb-2">Event Insight</div>
+                                                <div className="text-gray-200 text-sm leading-relaxed">{parsed.text}</div>
+                                            </div>
+                                        );
+                                    }
                                     return (
-                                        <div className="bg-gray-800 border border-green-700 rounded-lg p-5 flex items-start gap-4 shadow-lg">
-                                            <div className="text-3xl mt-1">💡</div>
-                                            <div>
-                                                <div className="font-bold text-green-300 mb-1">Event Insight</div>
-                                                <div className="text-green-100 whitespace-pre-line text-base leading-relaxed">{parsed.text}</div>
-                                            </div>
+                                        <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-600/30">
+                                            <div className="text-gray-200 text-sm leading-relaxed">{String(parsed)}</div>
                                         </div>
                                     );
-                                }
-                                return (
-                                    <div className="bg-gray-800 border border-green-700 rounded-lg p-5 flex items-start gap-4 shadow-lg">
-                                        <div className="text-3xl mt-1">💡</div>
-                                        <div className="text-green-100 whitespace-pre-line text-base leading-relaxed">{String(parsed)}</div>
-                                    </div>
-                                );
-                            })()}
-                        </div>
-                    )}
-                </div>
-                {message && (
-                    <div className={`mb-4 w-full text-center py-2 rounded font-semibold ${messageType === 'success' ? 'bg-green-900 text-green-300 border border-green-700' : 'bg-red-900 text-red-300 border border-red-700'}`}>{message}</div>
-                )}
-                {/* Connect Google Calendar Button */}
-                {!isGoogleConnected && (
-                    <div className="mb-6 flex flex-col items-start gap-2">
-                        <button
-                            onClick={getAuthUrl}
-                            className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24" height="24" className="inline-block"><g><path fill="#4285F4" d="M44.5 20H24v8.5h11.7C34.7 33.6 30.1 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/><path fill="#34A853" d="M6.3 14.7l7 5.1C15.5 16.1 19.4 13 24 13c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 15.2 3 7.7 8.7 6.3 14.7z"/><path fill="#FBBC05" d="M24 45c5.1 0 9.8-1.7 13.4-4.7l-6.2-5.1C29.2 36.5 26.7 37.5 24 37.5c-6.1 0-10.7-4.1-12.5-9.6l-7 5.4C7.7 39.3 15.2 45 24 45z"/><path fill="#EA4335" d="M44.5 20H24v8.5h11.7c-1.2 3.2-4.2 5.5-7.7 5.5-2.2 0-4.2-.7-5.7-2l-7 5.4C18.2 43.1 21 45 24 45c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/></g></svg>
-                            Connect Google Calendar
-                        </button>
-                    </div>
-                )}
-                <div className="flex flex-col md:flex-row gap-8">
-                    {/* Task List */}
-                    <div className="flex-1 bg-gray-900 bg-opacity-95 rounded-xl shadow-lg p-6 border border-green-800">
-                        <h2 className="text-2xl font-bold text-green-400 mb-4 drop-shadow-lg">Your Tasks</h2>
-                        {tasks.length === 0 ? (
-                            <p className="text-gray-400">No tasks yet. Add one!</p>
-                        ) : (
-                            <ul className="space-y-4">
-                                {tasks.map(t => (
-                                    <li key={t.id} className="flex flex-col md:flex-row md:items-center justify-between bg-gray-800 rounded-lg p-4 shadow-lg hover:shadow-xl transition-all border border-gray-700 hover:border-green-500">
-                                        <div>
-                                            <div className="font-semibold text-lg text-green-400">{t.taskName}</div>
-                                            <div className="text-gray-300 mb-1">{t.taskDescription}</div>
-                                            <div className="text-xs text-gray-400">Priority: <span className="font-medium">{t.taskPriority}</span> | Status: <span className="font-medium">{t.taskStatus}</span> | Due: <span className="font-medium">{t.taskDueDate}</span></div>
-                                        </div>
-                                        <div className="flex gap-2 mt-2 md:mt-0">
-                                            <button onClick={() => handleUpdate(t)} className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-1 rounded transition-all duration-200 font-semibold shadow-sm">✏️ Update</button>
-                                            <button onClick={() => handleDelete(t)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded transition-all duration-200 font-semibold shadow-sm">🗑️ Delete</button>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
+                                })()}
+                            </div>
                         )}
                     </div>
-                    {/* Task Form */}
-                    <div className="flex-1 bg-gray-900 bg-opacity-95 rounded-xl shadow-lg p-6 flex flex-col justify-center border border-green-800">
-                        <h2 className={`text-2xl font-bold mb-6 text-center ${isUpdate ? 'text-yellow-400' : 'text-green-400'} drop-shadow-lg`}>{isUpdate ? 'Update Task' : 'Create Task'}</h2>
-                        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                            <input
-                                name="taskName"
-                                value={form.taskName}
-                                onChange={handleChange}
-                                placeholder="Task name"
-                                className="border border-green-700 bg-gray-800 text-gray-100 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-gray-400"
-                                required
-                            />
-                            <input
-                                name="taskDescription"
-                                value={form.taskDescription}
-                                onChange={handleChange}
-                                placeholder="Task description"
-                                className="border border-green-700 bg-gray-800 text-gray-100 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-gray-400"
-                                required
-                            />
-                            <div className="flex gap-4">
-                                <select
-                                    name="taskStatus"
-                                    value={form.taskStatus}
-                                    onChange={handleChange}
-                                    className="border border-green-700 bg-gray-800 text-gray-100 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-gray-400 w-1/2"
-                                    required
-                                >
-                                    <option value="">Select Status</option>
-                                    <option value="INPROGRESS">In Progress</option>
-                                    <option value="OPEN">Open</option>
-                                    <option value="CLOSED">Closed</option>
-                                </select>
-                                <select
-                                    name="taskPriority"
-                                    value={form.taskPriority}
-                                    onChange={handleChange}
-                                    className="border border-green-700 bg-gray-800 text-gray-100 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-gray-400 w-1/2"
-                                    required
-                                >
-                                    <option value="">Select Priority</option>
-                                    <option value="LOW">Low</option>
-                                    <option value="MEDIUM">Medium</option>
-                                    <option value="HIGH">High</option>
-                                </select>
-                            </div>
-                            <input
-                                name="taskDueDate"
-                                value={form.taskDueDate}
-                                onChange={handleChange}
-                                placeholder="Due date (YYYY-MM-DD)"
-                                className="border border-green-700 bg-gray-800 text-gray-100 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 placeholder-gray-400"
-                                type="date"
-                                required
-                            />
-                            <div className="flex gap-2 justify-center mt-2">
-                                <button
-                                    type="submit"
-                                    className={`${isUpdate ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-600 hover:bg-green-700'} text-white font-semibold py-2 px-6 rounded transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105`}
-                                >
-                                    {isUpdate ? 'Update' : 'Create'}
-                                </button>
-                                {isUpdate && (
-                                    <button
-                                        type="button"
-                                        onClick={handleCancel}
-                                        className="bg-gray-700 hover:bg-gray-800 text-gray-200 font-semibold py-2 px-6 rounded transition-all duration-200"
-                                    >
-                                        Cancel
-                                    </button>
-                                )}
-                            </div>
-                        </form>
-                    </div>
                 </div>
-                
-                {/* Google Calendar Events Section */}
-                {isGoogleConnected && (
-                    <div className="mt-8 bg-gray-900 bg-opacity-95 rounded-xl shadow-lg p-6 border border-green-800">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-2xl font-bold text-green-400 flex items-center gap-2 drop-shadow-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24" height="24"><g><path fill="#4285F4" d="M44.5 20H24v8.5h11.7C34.7 33.6 30.1 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/><path fill="#34A853" d="M6.3 14.7l7 5.1C15.5 16.1 19.4 13 24 13c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 15.2 3 7.7 8.7 6.3 14.7z"/><path fill="#FBBC05" d="M24 45c5.1 0 9.8-1.7 13.4-4.7l-6.2-5.1C29.2 36.5 26.7 37.5 24 37.5c-6.1 0-10.7-4.1-12.5-9.6l-7 5.4C7.7 39.3 15.2 45 24 45z"/><path fill="#EA4335" d="M44.5 20H24v8.5h11.7c-1.2 3.2-4.2 5.5-7.7 5.5-2.2 0-4.2-.7-5.7-2l-7 5.4C18.2 43.1 21 45 24 45c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/></g></svg>
-                                Google Calendar Events
-                            </h2>
-                            <div className="flex items-center gap-2">
-                                <div className="text-sm text-green-400 font-medium">✓ Connected</div>
-                                <button
-                                    onClick={() => {
-                                        setIsGoogleConnected(false);
-                                        setEvents([]);
-                                        localStorage.removeItem('googleCalendarConnected');
-                                        localStorage.removeItem('googleCalendarEvents');
-                                        showMessage('Google Calendar disconnected', 'success');
-                                    }}
-                                    className="text-xs text-red-400 hover:text-red-600 underline"
-                                >
-                                    Disconnect
-                                </button>
+
+                {/* Messages */}
+                {message && (
+                    <div className={`w-full text-center py-3 rounded-xl font-semibold shadow-lg ${
+                        messageType === 'success' 
+                            ? 'bg-gradient-to-r from-green-600/20 to-emerald-600/20 text-green-300 border border-green-500/30' 
+                            : 'bg-gradient-to-r from-red-600/20 to-pink-600/20 text-red-300 border border-red-500/30'
+                    }`}>
+                        {message}
+                    </div>
+                )}
+
+                {/* Google Calendar Connection */}
+                {!isGoogleConnected && (
+                    <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50 shadow-xl">
+                        <div className="text-center">
+                            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="32" height="32">
+                                    <g>
+                                        <path fill="#4285F4" d="M44.5 20H24v8.5h11.7C34.7 33.6 30.1 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/>
+                                        <path fill="#34A853" d="M6.3 14.7l7 5.1C15.5 16.1 19.4 13 24 13c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 15.2 3 7.7 8.7 6.3 14.7z"/>
+                                        <path fill="#FBBC05" d="M24 45c5.1 0 9.8-1.7 13.4-4.7l-6.2-5.1C29.2 36.5 26.7 37.5 24 37.5c-6.1 0-10.7-4.1-12.5-9.6l-7 5.4C7.7 39.3 15.2 45 24 45z"/>
+                                        <path fill="#EA4335" d="M44.5 20H24v8.5h11.7c-1.2 3.2-4.2 5.5-7.7 5.5-2.2 0-4.2-.7-5.7-2l-7 5.4C18.2 43.1 21 45 24 45c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/>
+                                    </g>
+                                </svg>
                             </div>
+                            <h3 className="text-xl font-bold text-white mb-2">Connect Google Calendar</h3>
+                            <p className="text-gray-400 mb-6">Sync your calendar events for better insights</p>
+                            <button
+                                onClick={getAuthUrl}
+                                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-8 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                            >
+                                Connect Now
+                            </button>
                         </div>
-                        
-                        {eventsLoading ? (
-                            <div className="text-center py-8">
-                                <div className="text-green-400 font-semibold">Loading events...</div>
+                    </div>
+                )}
+
+                {/* Main Content Grid */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    {/* Tasks Section - Takes 2 columns on large screens */}
+                    <div className="xl:col-span-2 space-y-6">
+                        {/* Task List */}
+                        <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50 shadow-xl">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center">
+                                    <span className="text-xl">📋</span>
+                                </div>
+                                <h2 className="text-xl font-bold text-white">Your Tasks</h2>
                             </div>
-                        ) : events.length === 0 ? (
-                            <div className="text-center py-8">
-                                <div className="text-gray-400">No upcoming events found in your Google Calendar.</div>
-                            </div>
-                        ) : (
-                            <div className="grid gap-4">
-                                {Array.isArray(events) ? events.map((event, index) => (
-                                    <div key={index} className="bg-gray-800 rounded-lg p-4 border-l-4 border-green-500 hover:shadow-xl transition-all">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex-1">
-                                                <h3 className="font-semibold text-green-400 text-lg mb-1">
-                                                    {event.split(' - ')[1] || 'Untitled Event'}
-                                                </h3>
-                                                <p className="text-green-300 text-sm">
-                                                    📅 {formatDate(event.split(' - ')[0])}
-                                                </p>
+                            {tasks.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <div className="w-16 h-16 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                        <span className="text-2xl">📝</span>
+                                    </div>
+                                    <p className="text-gray-400 text-lg">No tasks yet. Create your first task!</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {tasks.map(t => (
+                                        <div key={t.id} className="bg-gray-800/60 rounded-xl p-4 border border-gray-600/30 hover:border-yellow-500/50 transition-all duration-300 group">
+                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                <div className="flex-1">
+                                                    <h3 className="font-semibold text-lg text-white group-hover:text-yellow-400 transition-colors">
+                                                        {t.taskName}
+                                                    </h3>
+                                                    <p className="text-gray-300 text-sm mt-1">{t.taskDescription}</p>
+                                                    <div className="flex flex-wrap gap-3 mt-3">
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                                            t.taskPriority === 'HIGH' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                                                            t.taskPriority === 'MEDIUM' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                                                            'bg-green-500/20 text-green-300 border border-green-500/30'
+                                                        }`}>
+                                                            {t.taskPriority}
+                                                        </span>
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                                            t.taskStatus === 'CLOSED' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                                                            t.taskStatus === 'INPROGRESS' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+                                                            'bg-gray-500/20 text-gray-300 border border-gray-500/30'
+                                                        }`}>
+                                                            {t.taskStatus}
+                                                        </span>
+                                                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                                            📅 {t.taskDueDate}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button 
+                                                        onClick={() => handleUpdate(t)} 
+                                                        className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 px-4 py-2 rounded-lg transition-all duration-300 border border-yellow-500/30 hover:border-yellow-500/50"
+                                                    >
+                                                        ✏️ Edit
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDelete(t)} 
+                                                        className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-4 py-2 rounded-lg transition-all duration-300 border border-red-500/30 hover:border-red-500/50"
+                                                    >
+                                                        🗑️ Delete
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Google Calendar Events */}
+                        {isGoogleConnected && (
+                            <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50 shadow-xl">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24" height="24">
+                                                <g>
+                                                    <path fill="#4285F4" d="M44.5 20H24v8.5h11.7C34.7 33.6 30.1 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/>
+                                                    <path fill="#34A853" d="M6.3 14.7l7 5.1C15.5 16.1 19.4 13 24 13c2.7 0 5.2.9 7.2 2.4l6.4-6.4C34.1 5.1 29.3 3 24 3 15.2 3 7.7 8.7 6.3 14.7z"/>
+                                                    <path fill="#FBBC05" d="M24 45c5.1 0 9.8-1.7 13.4-4.7l-6.2-5.1C29.2 36.5 26.7 37.5 24 37.5c-6.1 0-10.7-4.1-12.5-9.6l-7 5.4C7.7 39.3 15.2 45 24 45z"/>
+                                                    <path fill="#EA4335" d="M44.5 20H24v8.5h11.7c-1.2 3.2-4.2 5.5-7.7 5.5-2.2 0-4.2-.7-5.7-2l-7 5.4C18.2 43.1 21 45 24 45c10.5 0 20-7.7 20-21 0-1.3-.1-2.7-.3-4z"/>
+                                                </g>
+                                            </svg>
+                                        </div>
+                                        <h2 className="text-xl font-bold text-white">Google Calendar Events</h2>
                                     </div>
-                                )) : (
-                                    <div className="text-center py-8">
-                                        <div className="text-gray-400">Invalid events data received.</div>
-                                        <div className="text-xs text-gray-500 mt-2">Debug: {JSON.stringify(events)}</div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-sm text-green-400 font-medium bg-green-500/10 px-3 py-1 rounded-full border border-green-500/30">
+                                            ✓ Connected
+                                        </span>
+                                        <button
+                                            onClick={() => {
+                                                clearGoogleCalendarData();
+                                                showMessage('Google Calendar disconnected', 'success');
+                                            }}
+                                            className="text-xs text-red-400 hover:text-red-300 underline hover:no-underline transition-all"
+                                        >
+                                            Disconnect
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                {eventsLoading ? (
+                                    <div className="text-center py-12">
+                                        <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                                        <div className="text-blue-400 font-medium">Loading events...</div>
+                                    </div>
+                                ) : events.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <div className="w-16 h-16 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                            <span className="text-2xl">📅</span>
+                                        </div>
+                                        <p className="text-gray-400">No upcoming events found in your Google Calendar.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-4">
+                                        {Array.isArray(events) ? events.map((event, index) => (
+                                            <div key={index} className="bg-gray-800/60 rounded-xl p-4 border-l-4 border-blue-500 hover:border-blue-400 transition-all duration-300 group">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                        <span className="text-blue-400">📅</span>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <h3 className="font-semibold text-white text-lg mb-1 group-hover:text-blue-400 transition-colors">
+                                                            {event.split(' - ')[1] || 'Untitled Event'}
+                                                        </h3>
+                                                        <p className="text-gray-300 text-sm">
+                                                            {formatDate(event.split(' - ')[0])}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )) : (
+                                            <div className="text-center py-8">
+                                                <div className="text-gray-400">Invalid events data received.</div>
+                                                <div className="text-xs text-gray-500 mt-2">Debug: {JSON.stringify(events)}</div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
                         )}
                     </div>
-                )}
+
+                    {/* Task Form - Takes 1 column on large screens */}
+                    <div className="xl:col-span-1">
+                        <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50 shadow-xl sticky top-6">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                                    isUpdate 
+                                        ? 'bg-gradient-to-br from-yellow-500 to-orange-600' 
+                                        : 'bg-gradient-to-br from-green-500 to-emerald-600'
+                                }`}>
+                                    <span className="text-xl">{isUpdate ? '✏️' : '➕'}</span>
+                                </div>
+                                <h2 className="text-xl font-bold text-white">
+                                    {isUpdate ? 'Update Task' : 'Create Task'}
+                                </h2>
+                            </div>
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Task Name</label>
+                                    <input
+                                        name="taskName"
+                                        value={form.taskName}
+                                        onChange={handleChange}
+                                        placeholder="Enter task name"
+                                        className="w-full border border-gray-600 bg-gray-800/60 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400 transition-all duration-300"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                                    <input
+                                        name="taskDescription"
+                                        value={form.taskDescription}
+                                        onChange={handleChange}
+                                        placeholder="Enter task description"
+                                        className="w-full border border-gray-600 bg-gray-800/60 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400 transition-all duration-300"
+                                        required
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                                        <select
+                                            name="taskStatus"
+                                            value={form.taskStatus}
+                                            onChange={handleChange}
+                                            className="w-full border border-gray-600 bg-gray-800/60 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                            required
+                                        >
+                                            <option value="">Select Status</option>
+                                            <option value="INPROGRESS">In Progress</option>
+                                            <option value="OPEN">Open</option>
+                                            <option value="CLOSED">Closed</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">Priority</label>
+                                        <select
+                                            name="taskPriority"
+                                            value={form.taskPriority}
+                                            onChange={handleChange}
+                                            className="w-full border border-gray-600 bg-gray-800/60 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                            required
+                                        >
+                                            <option value="">Select Priority</option>
+                                            <option value="LOW">Low</option>
+                                            <option value="MEDIUM">Medium</option>
+                                            <option value="HIGH">High</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Due Date</label>
+                                    <input
+                                        name="taskDueDate"
+                                        value={form.taskDueDate}
+                                        onChange={handleChange}
+                                        type="date"
+                                        className="w-full border border-gray-600 bg-gray-800/60 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                                        required
+                                    />
+                                </div>
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        type="submit"
+                                        className={`flex-1 font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] ${
+                                            isUpdate 
+                                                ? 'bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white' 
+                                                : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'
+                                        }`}
+                                    >
+                                        {isUpdate ? 'Update Task' : 'Create Task'}
+                                    </button>
+                                    {isUpdate && (
+                                        <button
+                                            type="button"
+                                            onClick={handleCancel}
+                                            className="px-6 py-3 bg-gray-700/60 hover:bg-gray-700/80 text-gray-200 font-semibold rounded-xl transition-all duration-300 border border-gray-600/30 hover:border-gray-600/50"
+                                        >
+                                            Cancel
+                                        </button>
+                                    )}
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
