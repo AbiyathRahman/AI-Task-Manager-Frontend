@@ -302,17 +302,17 @@ export default function Dashboard() {
             return (
                 <div className="space-y-3 mt-2 w-full">
                     {parsed.map((item, idx) => (
-                        <div key={idx} className="bg-blue-50 rounded p-3 text-blue-900 whitespace-pre-line">
-                            {item.text}
+                        <div key={idx} className="bg-gray-800/60 rounded-xl p-4 border border-gray-600/30">
+                            <div className="text-gray-100 text-base leading-relaxed">{item.text}</div>
                         </div>
                     ))}
                 </div>
             );
         }
         if (typeof parsed === 'object' && parsed.text) {
-            return <div className="bg-blue-50 rounded p-3 text-blue-900 whitespace-pre-line mt-2 w-full">{parsed.text}</div>;
+            return <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-600/30 text-gray-100 text-base leading-relaxed mt-2 w-full">{parsed.text}</div>;
         }
-        return <div className="bg-blue-50 rounded p-3 text-blue-900 whitespace-pre-line mt-2 w-full">{String(parsed)}</div>;
+        return <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-600/30 text-gray-100 text-base leading-relaxed mt-2 w-full">{String(parsed)}</div>;
     }
 
     // Helper to format date
@@ -403,22 +403,20 @@ export default function Dashboard() {
                                     if (Array.isArray(parsed)) {
                                         return parsed.map((item, idx) => (
                                             <div key={idx} className="bg-gray-800/60 rounded-xl p-4 border border-gray-600/30">
-                                                <div className="font-semibold text-green-300 mb-2">Insight {idx + 1}</div>
-                                                <div className="text-gray-200 text-sm leading-relaxed">{item.text}</div>
+                                                <div className="text-gray-100 text-base leading-relaxed">{item.text}</div>
                                             </div>
                                         ));
                                     }
                                     if (typeof parsed === 'object' && parsed.text) {
                                         return (
                                             <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-600/30">
-                                                <div className="font-semibold text-green-300 mb-2">Event Insight</div>
-                                                <div className="text-gray-200 text-sm leading-relaxed">{parsed.text}</div>
+                                                <div className="text-gray-100 text-base leading-relaxed">{parsed.text}</div>
                                             </div>
                                         );
                                     }
                                     return (
                                         <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-600/30">
-                                            <div className="text-gray-200 text-sm leading-relaxed">{String(parsed)}</div>
+                                            <div className="text-gray-100 text-base leading-relaxed">{String(parsed)}</div>
                                         </div>
                                     );
                                 })()}
@@ -486,7 +484,7 @@ export default function Dashboard() {
                             ) : (
                                 <div className="space-y-4">
                                     {tasks.map(t => (
-                                        <div key={t.id} className="bg-gray-800/60 rounded-xl p-4 border border-gray-600/30 hover:border-yellow-500/50 transition-all duration-300 group">
+                                        <div key={t.id} className="bg-gray-800/60 rounded-xl p-4 border border-gray-600/30 hover:border-yellow-500/50 transition-all duration-300 group" onClick={() => handleUpdate(t)}>
                                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                                 <div className="flex-1">
                                                     <h3 className="font-semibold text-lg text-white group-hover:text-yellow-400 transition-colors">
