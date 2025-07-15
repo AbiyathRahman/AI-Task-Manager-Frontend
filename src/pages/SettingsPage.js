@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import axios from "../api/axios";
 
 export default function SettingsPage() {
-  const [user, setUser] = useState({ name: "", username: "" });
-  const [form, setForm] = useState({ name: "", username: "" });
+  const [user, setUser] = useState({ name: "", username: "" , tier: ""});
+  const [form, setForm] = useState({ name: "", username: "" , tier: ""});
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -14,10 +14,10 @@ export default function SettingsPage() {
     try {
       const res = await axios.get('/api/user/you');
       setUser(res.data);
-      setForm({ name: res.data.name, username: res.data.username });
+      setForm({ name: res.data.name, username: res.data.username , tier: res.data.tier});
     } catch (err) {
-      setUser({ name: "", username: "" });
-      setForm({ name: "", username: "" });
+      setUser({ name: "", username: "" , tier: ""});
+      setForm({ name: "", username: "" , tier: ""});
     } finally {
       setLoading(false);
     }
@@ -76,6 +76,14 @@ export default function SettingsPage() {
             <input
               name="username"
               value={form.username}
+              readOnly
+              className="mt-1 border border-green-700 bg-gray-800 text-green-400 rounded px-3 py-2 w-full cursor-not-allowed focus:outline-none"
+            />
+          </label>
+          <label className="text-gray-200 font-medium">Tier
+            <input
+              name="tier"
+              value={form.tier}
               readOnly
               className="mt-1 border border-green-700 bg-gray-800 text-green-400 rounded px-3 py-2 w-full cursor-not-allowed focus:outline-none"
             />
