@@ -199,6 +199,13 @@ export default function Dashboard() {
             const res = await axios.get('/api/task/insights');
             console.log('AI Insight Response:', res.data);
             setAiInsight(res.data.content && res.data.content.text ? res.data.content.text : JSON.stringify(res.data.content || res.data));
+        } catch (error) {
+            if (error.response && error.response.status === 403) {
+                showMessage('You do not have permission to access this feature.', 'error');
+            } else {
+                showMessage('Error fetching AI insight', 'error');
+                console.log(error);
+            }
         } finally {
             setAiLoading(false);
         }
@@ -211,8 +218,28 @@ export default function Dashboard() {
             const res = await axios.get(`/api/calendar/event-insights?code=${code}`);
             setEventInsight(res.data.content && res.data.content.text ? res.data.content.text : JSON.stringify(res.data.content || res.data));
         } catch (error) {
-            console.log(error);
-            showMessage('Error fetching event insights', 'error');
+            if (
+                error.response &&
+                (error.response.status === 403 || error.response.status === 500) &&
+                error.response.data &&
+                typeof error.response.data === 'string' &&
+                error.response.data.includes('Pro feature not available for premium users')
+            ) {
+                showMessage('This feature is not available for BASIC users.', 'error');
+            } else if (
+                error.response &&
+                (error.response.status === 403 || error.response.status === 500) &&
+                error.response.data &&
+                typeof error.response.data === 'string' &&
+                error.response.data.includes('Failed to fetch calendar events')
+            ) {
+                showMessage('Failed to fetch calendar events.', 'error');
+            } else if (error.response && error.response.status === 403) {
+                showMessage('You do not have permission to access this feature.', 'error');
+            } else {
+                showMessage('Error fetching event insights', 'error');
+                console.log(error);
+            }
         } finally {
             setEventInsightLoading(false);
         }

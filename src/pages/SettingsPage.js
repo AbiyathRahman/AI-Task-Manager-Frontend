@@ -35,16 +35,41 @@ export default function SettingsPage() {
     setError("");
     setSuccess(false);
     try {
+      if (form.tier === user.tier) {
+        setError("You have already selected this tier.");
+        setSaving(false);
+        return;
+      }
       await axios.put('/api/user/change-name', form, {
         headers: {
           'Content-Type': 'application/json'
         }
-      });
+      })
+      await axios.put('/api/user/change-tier',{tier: form.tier}, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
       setSuccess(true);
       loadUser();
     } catch (error) {
-      setError("Failed to update name. Please try again.");
-      console.log(error);
+      if (
+        error.response &&
+        error.response.status === 403 &&
+        error.response.data &&
+        typeof error.response.data === 'string' &&
+        error.response.data.includes('Basic feature not available for free users')
+      ) {
+        setError('This feature is not available for FREE users.');
+      } else if (error.response && error.response.status === 403) {
+        setError('You do not have permission to perform this action.');
+      } else {
+        setError("Failed to update name. Please try again.");
+      }
+      // Only log unexpected errors
+      if (!error.response || error.response.status !== 403) {
+        console.log(error);
+      }
     } finally {
       setSaving(false);
     }
@@ -81,12 +106,18 @@ export default function SettingsPage() {
             />
           </label>
           <label className="text-gray-200 font-medium">Tier
-            <input
+            <select
               name="tier"
               value={form.tier}
-              readOnly
-              className="mt-1 border border-green-700 bg-gray-800 text-green-400 rounded px-3 py-2 w-full cursor-not-allowed focus:outline-none"
-            />
+              onChange={handleChange}
+              disabled={saving}
+              className="mt-1 border border-green-700 bg-gray-800 text-green-400 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-green-500"
+              required
+            >
+              <option value="FREE">FREE</option>
+              <option value="BASIC">BASIC</option>
+              <option value="PREMIUM">PREMIUM</option>
+            </select>
           </label>
           <button
             type="submit"
