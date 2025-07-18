@@ -1,4 +1,3 @@
-import Navbar from "./Navbar";
 import { Outlet, Navigate } from "react-router-dom";
 
 export default function ProtectedLayout() {
@@ -6,7 +5,6 @@ export default function ProtectedLayout() {
   if (!isLoggedIn) return <Navigate to="/login" />;
   return (
     <div>
-      <Navbar />
       <Outlet />
     </div>
   );
