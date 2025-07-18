@@ -21,6 +21,11 @@ export default function LandingPage() {
               Register
             </button>
           </Link>
+          <Link to="/pricing" className="w-full md:w-auto">
+            <button className="w-full md:w-auto bg-gradient-to-r from-green-700 to-emerald-700 hover:from-green-800 hover:to-emerald-800 text-white font-bold py-3 px-8 rounded-lg text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105">
+              View Pricing
+            </button>
+          </Link>
         </div>
       </header>
       <main className="flex-1 flex flex-col items-center justify-center w-full px-4 pb-10">

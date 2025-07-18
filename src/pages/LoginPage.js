@@ -1,6 +1,7 @@
 import { useState } from "react";
 import axios from "../api/axios";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function LoginPage(){
     const [form, setForm] = useState({username: '', password: ''});
@@ -47,10 +48,17 @@ export default function LoginPage(){
             />
             <button 
               type="submit" 
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               Login
             </button>
+            {message && <div className="text-red-400 text-center font-semibold">{message}</div>}
+            <div className="text-center mt-6">
+              <p className="text-gray-300">New to InsightPulse?</p>
+              <Link to="/register" className="text-green-400 hover:text-green-300 font-semibold underline hover:no-underline transition-all duration-200">
+                Create an account
+              </Link>
+            </div>
           </form>
         </div>
     );

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import axios from "../api/axios";
 
 export default function RegisterPage(){
@@ -57,12 +57,16 @@ export default function RegisterPage(){
               autoComplete="new-password"
               required
             />
-            <button 
-              type="submit" 
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
+            <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105">
               Register
             </button>
+            {message && <div className="text-red-400 text-center font-semibold">{message}</div>}
+            <div className="text-center mt-6">
+              <p className="text-gray-300">Already have an account?</p>
+              <Link to="/login" className="text-green-400 hover:text-green-300 font-semibold underline hover:no-underline transition-all duration-200">
+                Sign in here
+              </Link>
+            </div>
           </form>
         </div>
     );

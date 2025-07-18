@@ -36,6 +36,18 @@ export default function Navbar() {
         >
           Settings
         </NavLink>
+        <NavLink
+          to="/pricing"
+          className={({ isActive }) =>
+            `text-lg font-semibold px-3 py-1 rounded transition-all duration-300 ${
+              isActive
+                ? "bg-green-900 text-green-400"
+                : "text-gray-200 hover:text-green-400 hover:bg-gray-800"
+            }`
+          }
+        >
+          Pricing
+        </NavLink>
       </div>
       <button
         onClick={handleLogout}
