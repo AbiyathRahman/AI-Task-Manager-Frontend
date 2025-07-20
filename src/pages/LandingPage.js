@@ -12,17 +12,17 @@ export default function LandingPage() {
         </p>
         <div className="flex flex-col md:flex-row gap-4 w-full justify-center">
           <Link to="/login" className="w-full md:w-auto">
-            <button className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105">
+            <button className="w-full md:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1">
               Get Started
             </button>
           </Link>
           <Link to="/register" className="w-full md:w-auto">
-            <button className="w-full md:w-auto bg-transparent hover:bg-gray-800 text-green-400 font-bold py-3 px-8 rounded-lg text-lg transition-all duration-200 border-2 border-green-400 hover:border-green-300 shadow-lg hover:shadow-xl transform hover:scale-105">
+            <button className="w-full md:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1">
               Register
             </button>
           </Link>
           <Link to="/pricing" className="w-full md:w-auto">
-            <button className="w-full md:w-auto bg-gradient-to-r from-green-700 to-emerald-700 hover:from-green-800 hover:to-emerald-800 text-white font-bold py-3 px-8 rounded-lg text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105">
+            <button className="w-full md:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1">
               View Pricing
             </button>
           </Link>
