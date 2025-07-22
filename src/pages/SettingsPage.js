@@ -75,7 +75,23 @@ export default function SettingsPage() {
     }
   };
 
-  if (loading) return <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-900 via-black to-green-900"><div className="text-green-400 text-xl font-bold">Loading...</div></div>;
+  if (loading) return (
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-900 via-black to-green-900">
+      <div className="bg-gray-900 bg-opacity-95 rounded-xl shadow-lg p-8 w-full max-w-md flex flex-col items-center border border-green-800 animate-pulse">
+        <div className="mb-6 flex flex-col items-center">
+          <div className="w-24 h-24 rounded-full bg-green-900 mb-2 border-4 border-green-500"></div>
+          <div className="h-6 bg-gray-700 rounded w-32 mb-2"></div>
+          <div className="h-4 bg-gray-700 rounded w-24"></div>
+        </div>
+        <div className="w-full flex flex-col gap-4">
+          <div className="h-10 bg-gray-800 rounded w-full mb-2"></div>
+          <div className="h-10 bg-gray-800 rounded w-full mb-2"></div>
+          <div className="h-10 bg-gray-800 rounded w-full mb-2"></div>
+          <div className="h-12 bg-green-700 rounded w-full mt-2"></div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-green-900 flex flex-col items-center justify-center px-2 py-8">

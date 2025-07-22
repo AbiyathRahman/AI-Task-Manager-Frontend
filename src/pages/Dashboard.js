@@ -387,8 +387,9 @@ export default function Dashboard() {
                             {aiLoading ? 'Generating...' : 'Get AI Suggestion'}
                         </button>
                         {aiLoading && (
-                            <div className="mt-4 text-blue-400 font-medium text-center">
-                                <div className="animate-pulse">Generating insight...</div>
+                            <div className="mt-4 flex flex-col items-center">
+                                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                <div className="text-blue-400 font-medium text-center animate-pulse">Generating insight...</div>
                             </div>
                         )}
                         {aiInsight && (
@@ -414,8 +415,9 @@ export default function Dashboard() {
                             {eventInsightLoading ? 'Generating...' : 'Get Event Insight'}
                         </button>
                         {eventInsightLoading && (
-                            <div className="mt-4 text-green-400 font-medium text-center">
-                                <div className="animate-pulse">Generating event insight...</div>
+                            <div className="mt-4 flex flex-col items-center">
+                                <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                <div className="text-green-400 font-medium text-center animate-pulse">Generating event insight...</div>
                             </div>
                         )}
                         {eventInsight && (
@@ -501,7 +503,17 @@ export default function Dashboard() {
                                 </div>
                                 <h2 className="text-xl font-bold text-white">Your Tasks</h2>
                             </div>
-                            {tasks.length === 0 ? (
+                            {tasks.length === 0 && !aiLoading && !eventsLoading ? (
+                                <div className="space-y-4">
+                                    {[...Array(3)].map((_, i) => (
+                                        <div key={i} className="bg-gray-800/60 rounded-xl p-4 border border-gray-600/30 animate-pulse flex flex-col gap-3">
+                                            <div className="h-6 bg-gray-700 rounded w-1/3 mb-2"></div>
+                                            <div className="h-4 bg-gray-700 rounded w-2/3 mb-2"></div>
+                                            <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : tasks.length === 0 ? (
                                 <div className="text-center py-12">
                                     <div className="w-16 h-16 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
                                         <span className="text-2xl">📝</span>
@@ -593,9 +605,16 @@ export default function Dashboard() {
                                 </div>
                                 
                                 {eventsLoading ? (
-                                    <div className="text-center py-12">
-                                        <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                                        <div className="text-blue-400 font-medium">Loading events...</div>
+                                    <div className="grid gap-4">
+                                        {[...Array(3)].map((_, i) => (
+                                            <div key={i} className="bg-gray-800/60 rounded-xl p-4 border-l-4 border-blue-500 animate-pulse flex gap-4">
+                                                <div className="w-10 h-10 bg-blue-500/20 rounded-lg"></div>
+                                                <div className="flex-1 space-y-2">
+                                                    <div className="h-5 bg-gray-700 rounded w-1/2"></div>
+                                                    <div className="h-4 bg-gray-700 rounded w-1/3"></div>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 ) : events.length === 0 ? (
                                     <div className="text-center py-12">
