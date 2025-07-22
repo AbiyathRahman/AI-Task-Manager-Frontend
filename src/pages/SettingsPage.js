@@ -34,22 +34,28 @@ export default function SettingsPage() {
     setSaving(true);
     setError("");
     setSuccess(false);
+    const nameChanged = form.name !== user.name;
+    const tierChanged = form.tier !== user.tier;
+    if (!nameChanged && !tierChanged) {
+      setError("No changes detected.");
+      setSaving(false);
+      return;
+    }
     try {
-      if (form.tier === user.tier) {
-        setError("You have already selected this tier.");
-        setSaving(false);
-        return;
+      if (nameChanged) {
+        await axios.put('/api/user/change-name', form, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
       }
-      await axios.put('/api/user/change-name', form, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      await axios.put('/api/user/change-tier',{tier: form.tier}, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
+      if (tierChanged) {
+        await axios.put('/api/user/change-tier', { tier: form.tier }, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+      }
       setSuccess(true);
       loadUser();
     } catch (error) {
@@ -64,7 +70,7 @@ export default function SettingsPage() {
       } else if (error.response && error.response.status === 403) {
         setError('You do not have permission to perform this action.');
       } else {
-        setError("Failed to update name. Please try again.");
+        setError("Failed to update profile. Please try again.");
       }
       // Only log unexpected errors
       if (!error.response || error.response.status !== 403) {

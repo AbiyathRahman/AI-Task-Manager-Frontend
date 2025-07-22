@@ -21,6 +21,7 @@ export default function Dashboard() {
     const processedAuthCodes = useRef(new Set());
     const isFetchingEvents = useRef(false);
     const justCompletedFreshConnection = useRef(false);
+    const [user, setUser] = useState({ name: "", username: "" });
 
 
     const location = useLocation();
@@ -251,6 +252,26 @@ export default function Dashboard() {
     };
     useEffect(() => {loadTask();}, []);
 
+    // Fetch user info for greeting
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await axios.get('/api/user/you');
+                setUser(res.data);
+            } catch {
+                setUser({ name: "", username: "" });
+            }
+        };
+        fetchUser();
+    }, []);
+
+    function getGreeting() {
+        const hour = new Date().getHours();
+        if (hour < 12) return "Good morning";
+        if (hour < 18) return "Good afternoon";
+        return "Good evening";
+    }
+
     const handleChange = e => setForm({...form, [e.target.name]:e.target.value});
 
     const handleSubmit = async e => {
@@ -361,6 +382,12 @@ export default function Dashboard() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-green-900 p-6">
             <div className="max-w-7xl mx-auto space-y-8">
+                {/* Personalized Greeting */}
+                <div className="text-center mb-6">
+                    <h2 className="text-2xl md:text-3xl font-bold text-green-400 drop-shadow-lg">
+                        {getGreeting()}{user.name ? `, ${user.name}` : "!"}
+                    </h2>
+                </div>
                 {/* Header Section */}
                 <div className="text-center mb-12">
                     <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">
